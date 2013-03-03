@@ -103,7 +103,7 @@ class PirateBaySearch(object):
 
     def __init__(self, episode):
         self.results = []
-        r = requests.get(self.SEARCH_URL % urllib2.quote(repr(episode)))
+        r = requests.post(self.SEARCH_URL % urllib2.quote(repr(episode)))
         if not r.ok:
             r.raise_for_status()
         doc = bs4.BeautifulSoup(r.content, "lxml")
@@ -136,7 +136,7 @@ class PirateBaySearch(object):
             return "%s (%s seeders)" % (self.episode, self.seeders)
 
         def file_count(self):
-            r = requests.get(self.url)
+            r = requests.post(self.url)
             if not r.ok:
                 r.raise_for_status()
             doc = bs4.BeautifulSoup(r.content, "lxml")
