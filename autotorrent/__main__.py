@@ -3,11 +3,13 @@ import optparse
 import os.path
 import sys
 import webbrowser
+import json
 
 import autotorrent
+import autotorrent.twitter
 
 
-usage = ("Usage: %prog [options] [series [series [...]]]")
+usage = ("%prog [options] [series [series [...]]]")
 parser = optparse.OptionParser(usage=usage, prog="autotorrent")
 parser.add_option("-f", "--series-file", dest="series_file", metavar="<file>",
                   default=None, help="File containing a list of series"
@@ -20,6 +22,8 @@ parser.add_option("-o", "--open", dest="open",
                   help="Open found magnet links in a browser")
 parser.add_option("-t", "--transmission", dest="transmission", metavar="<url>",
                   default=None, help="URL of a transmission web-interface")
+parser.add_option("--twitter", dest="twitter", metavar="<file>", default=None,
+                  help="Twitter settings created with autotorrent.twitter")
 parser.add_option("-v", "--verbose", dest="verbose",
                   default=False, action="store_true",
                   help="Verbose output")
@@ -48,6 +52,7 @@ if not opts.storage:
 storage = autotorrent.Storage(opts.storage)
 verbose = opts.verbose
 magnets = []
+episodes = []
 
 for series_name in series_list:
     try:
@@ -70,9 +75,10 @@ for series_name in series_list:
                 )
             else:
                 magnets.append(magnet)
+                episodes.append(episode)
     except Exception as e:
-        sys.stderr.write("Refreshing series '%s' failed: %s\n" %
-                         (series, e.message))
+        sys.stderr.write("Refreshing series '%s' failed: %s: %s\n" %
+                         (series, e.__class__.__name__, e.message))
 
 if opts.open:
     def download(magnet):
@@ -91,3 +97,13 @@ else:
 
 for magnet in magnets:
     download(magnet)
+
+if episodes and opts.twitter is not None:
+    with open(opts.twitter) as f:
+        try:
+            settings = json.load(f)
+        except Exception as e:
+            sys.stderr.write("Your Twitter settings are invalid: %s: %s\n" %
+                             (e.__class__.__name__, e.message))
+            sys.exit(1)
+    autotorrent.twitter.notify(settings, episodes)

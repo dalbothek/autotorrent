@@ -13,5 +13,5 @@ setuptools.setup(
     author_email="simon@ceilingcat.ch",
     description="Automated downloader for TV series",
     keywords="automatic tv series torrent download",
-    install_requires=("requests", "lxml", "beautifulsoup4")
+    install_requires=("requests", "lxml", "beautifulsoup4", "tweepy")
 )
