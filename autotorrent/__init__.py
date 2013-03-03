@@ -149,9 +149,10 @@ class Transmission(object):
     def __init__(self, url):
         if not url.endswith("/rpc"):
             if not url.endswith("/"):
-                url += "/rpc"
-            else:
-                url += "rpc"
+                url += "/"
+            url += "transmission/rpc"
+        if not url.startswith("http"):
+            url = "http://" + url
         self.url = url
         self.session_id = None
         self._renew_session_id()
