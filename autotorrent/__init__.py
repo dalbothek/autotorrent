@@ -8,6 +8,9 @@ import requests
 import bs4
 
 
+BLOCK_FILES = ("www.Torrentday.com.txt",)
+
+
 class Episode(object):
     def __init__(self, series, season, episode):
         self.series = series
@@ -120,17 +123,20 @@ class PirateBaySearch(object):
 
     def best_result(self):
         for result in sorted(self.results, key=lambda r: -r.seeders):
-            if result.file_count() <= self.MAX_FILE_COUNT:
+            if (not result.contains_blocked_files() and
+                    result.file_count() <= self.MAX_FILE_COUNT):
                 return result
 
     class PirateBaySearchResult(object):
-        BASE_URL = "http://thepiratebay.se%s"
+        BASE_URL = "http://thepiratebay.se"
+        FILE_LIST_URL = BASE_URL + "/ajax_details_filelist.php"
 
         def __init__(self, episode, url, magnet, seeders):
             self.episode = episode
-            self.url = self.BASE_URL % url
+            self.url = self.BASE_URL + url
             self.magnet = magnet
             self.seeders = seeders
+            self.id_ = int(url[9:url.find("/", 9)])
 
         def __repr__(self):
             return "%s (%s seeders)" % (self.episode, self.seeders)
@@ -141,6 +147,16 @@ class PirateBaySearch(object):
                 r.raise_for_status()
             doc = bs4.BeautifulSoup(r.content, "lxml")
             return int(doc.find("div", id="details").dl("dd")[1].a.text)
+
+        def contains_blocked_files(self):
+            r = requests.post(self.FILE_LIST_URL, params={'id': self.id_})
+            if not r.ok:
+                r.raise_for_status()
+            doc = bs4.BeautifulSoup(r.content, "lxml")
+            for td in doc("td", align="left"):
+                if td.text in BLOCK_FILES:
+                    return True
+            return False
 
 
 class Transmission(object):
