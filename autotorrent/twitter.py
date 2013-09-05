@@ -61,6 +61,7 @@ def get_access_token(consumer_key, consumer_secret):
         sys.exit(1)
     return auth.access_token
 
+
 if __name__ == "__main__":
     usage = ("%prog [options] user [user [...]]\n\n"
              "This script generates a settings file which can be used by"

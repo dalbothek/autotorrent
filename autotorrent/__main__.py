@@ -17,6 +17,9 @@ parser.add_option("-f", "--series-file", dest="series_file", metavar="<file>",
 parser.add_option("-s", "--storage", dest="storage", metavar="<file>",
                   default=[], action="append",
                   help="Directory containing already downloaded episodes")
+parser.add_option("-j", "--json", dest="json", metavar="<file>",
+                  default=None, help="JSON file containing already"
+                  " downloaded episodes")
 parser.add_option("-o", "--open", dest="open",
                   default=False, action="store_true",
                   help="Open found magnet links in a browser")
@@ -46,10 +49,10 @@ for folder in opts.storage:
 if not series_list:
     parser.error("You have to provide at least one series")
 
-if not opts.storage:
+if not opts.storage and not opts.json:
     parser.error("You have to provide at least one storage location")
 
-storage = autotorrent.Storage(opts.storage)
+storage = autotorrent.Storage(opts.storage, opts.json)
 verbose = opts.verbose
 magnets = []
 episodes = []
@@ -97,6 +100,9 @@ else:
 
 for magnet in magnets:
     download(magnet)
+
+if episodes and opts.json:
+    storage.add(episodes)
 
 if episodes and opts.twitter is not None:
     with open(opts.twitter) as f:

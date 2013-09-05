@@ -61,15 +61,13 @@ class Storage(object):
     EPISODE_PATTERN = re.compile("S(\d{2})E(\d{2})", flags=re.IGNORECASE)
     NORMALIZE_PATTERN = re.compile("[^\w\d]+")
 
-    def __init__(self, paths):
+    def __init__(self, paths, json_path=None):
         if isinstance(paths, basestring):
             paths = (paths,)
         self.files = [self._normalize(entry) for entry
                       in sum((os.listdir(path) for path in paths), [])
                       if self.EPISODE_PATTERN.search(entry) is not None]
-
-    def _normalize(self, entry):
-        return self.NORMALIZE_PATTERN.sub(" ", entry.lower())
+        self.json = JSONStorage(json_path) if json_path else None
 
     def existing_episodes(self, series, season=None):
         series_name = self._normalize(series.name)
@@ -82,6 +80,12 @@ class Storage(object):
                     if episode not in duplicates:
                         yield episode
                         duplicates.append(episode)
+
+        if self.json:
+            for episode in self.json.existing_episodes(series, season):
+                if episode not in duplicates:
+                    yield episode
+                    duplicates.append(episode)
 
     def missing_episodes(self, series, season=None):
         season = season or series.latest_episode.season
@@ -99,9 +103,57 @@ class Storage(object):
             for j in xrange(i, series.latest_episode.episode + 1):
                 yield Episode(series, season, j)
 
+    def add(self, episodes):
+        self.json.add(episodes)
+        self.json.save()
+
+    @classmethod
+    def _normalize(cls, entry):
+        return cls.NORMALIZE_PATTERN.sub(" ", entry.lower())
+
+
+class JSONStorage(object):
+    def __init__(self, path):
+        self.path = path
+        if os.path.exists(path):
+            with open(path) as f:
+                self.storage = json.load(f)
+        else:
+            self.storage = {}
+
+    def existing_episodes(self, series, season=None):
+        series_name = Storage._normalize(series.name)
+        if series_name not in self.storage:
+            return
+        seasons = self.storage[series_name]
+        if season:
+            season = str(season)
+            if season not in seasons:
+                return
+            seasons = {season: seasons[season]}
+
+        for season, episodes in seasons.iteritems():
+            for episode in episodes:
+                yield Episode(series, int(season), episode)
+
+
+    def add(self, episodes):
+        for episode in episodes:
+            series_name = Storage._normalize(episode.series.name)
+            season = (self.storage.setdefault(series_name, {})
+                                  .setdefault(str(episode.season), []))
+            if episode.episode not in season:
+                season.append(episode.episode)
+            season.sort()
+
+
+    def save(self):
+        with open(self.path, "w") as f:
+            json.dump(self.storage, f, sort_keys=True, indent=2)
+
 
 class PirateBaySearch(object):
-    SEARCH_URL = "http://thepiratebay.se/search/%s/0/99/208"
+    SEARCH_URL = "http://thepiratebay.sx/search/%s/0/99/208"
     MAX_FILE_COUNT = 5
 
     def __init__(self, episode):
@@ -128,7 +180,7 @@ class PirateBaySearch(object):
                 return result
 
     class PirateBaySearchResult(object):
-        BASE_URL = "http://thepiratebay.se"
+        BASE_URL = "http://thepiratebay.sx"
         FILE_LIST_URL = BASE_URL + "/ajax_details_filelist.php"
 
         def __init__(self, episode, url, magnet, seeders):
